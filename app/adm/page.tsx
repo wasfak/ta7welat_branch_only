@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { LogOut, Plus, Pencil, Trash2, X, Check } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, X, Check, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type Branch = { branchId: string; name: string };
 
@@ -151,6 +152,16 @@ export default function AdminPage() {
     router.push("/adm/login");
   };
 
+  const exportExcel = () => {
+    const rows = branches.map((b) => ({ "Branch ID": b.branchId, Name: b.name }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 24 }, { wch: 28 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Branches");
+    const today = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `branch-ids-${today}.xlsx`);
+  };
+
   return (
     <main className="mx-auto max-w-3xl space-y-5 p-6">
       {/* header */}
@@ -162,6 +173,10 @@ export default function AdminPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportExcel} disabled={loading || branches.length === 0}>
+            <Download className="h-4 w-4 mr-1" />
+            Export Excel
+          </Button>
           <Button onClick={openAdd}>
             <Plus className="h-4 w-4 mr-1" />
             Add branch
