@@ -39,9 +39,24 @@ export async function GET(req: Request) {
     createdAt: string;
   };
 
+  type LeanDest = {
+    branch: string;
+    qty: number;
+    transferDone?: boolean;
+    skipped?: boolean;
+    note?: string;
+  };
+  type LeanRow = {
+    code: string;
+    name: string;
+    from: string;
+    tarsedDone?: boolean;
+    dests: LeanDest[];
+  };
+
   const moves: Move[] = [];
   for (const plan of plans) {
-    plan.rows.forEach((row, rowIndex) => {
+    (plan.rows as LeanRow[]).forEach((row, rowIndex) => {
       if (row.from !== branchName || !row.tarsedDone) return;
       row.dests.forEach((dest, destIndex) => {
         moves.push({
