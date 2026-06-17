@@ -11,6 +11,10 @@ const DestSchema = new Schema(
     skippedAt: { type: Date, default: null },
     skippedBy: { type: String, default: null },
     note: { type: String, default: "" },
+    // رقم اذن الصرف — disbursement permit number the branch records when it
+    // transfers this leg. Optional on old docs (defaults to ""), filled going
+    // forward since no branch has transferred yet.
+    permitNo: { type: String, default: "" },
   },
   { _id: false },
 );

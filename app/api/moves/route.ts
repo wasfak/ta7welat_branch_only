@@ -36,6 +36,7 @@ export async function GET(req: Request) {
     done: boolean;
     skipped: boolean;
     note: string;
+    permitNo: string;
     createdAt: string;
   };
 
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
     transferDone?: boolean;
     skipped?: boolean;
     note?: string;
+    permitNo?: string;
   };
   type LeanRow = {
     code: string;
@@ -70,6 +72,7 @@ export async function GET(req: Request) {
           done: !!dest.transferDone,
           skipped: !!dest.skipped,
           note: dest.note ?? "",
+          permitNo: dest.permitNo ?? "",
           createdAt: plan.createdAt ? new Date(plan.createdAt).toISOString() : "",
         });
       });
@@ -87,6 +90,7 @@ type Update = {
   value?: boolean;
   skipped?: boolean;
   note?: string;
+  permitNo?: string; // رقم اذن الصرف, recorded when marking the transfer done
 };
 
 export async function PATCH(req: Request) {
@@ -129,18 +133,20 @@ export async function PATCH(req: Request) {
         },
       });
     } else {
-      // mark transfer done
+      // mark transfer done — also store رقم اذن الصرف if provided
       const value = !!u.value;
+      const set: Record<string, unknown> = {
+        [`rows.${u.rowIndex}.dests.${u.destIndex}.transferDone`]: value,
+        [`rows.${u.rowIndex}.dests.${u.destIndex}.transferDoneAt`]: value ? now : null,
+        [`rows.${u.rowIndex}.dests.${u.destIndex}.transferDoneBy`]: value ? branchName : null,
+      };
+      if (typeof u.permitNo === "string")
+        set[`rows.${u.rowIndex}.dests.${u.destIndex}.permitNo`] =
+          u.permitNo.trim();
       ops.push({
         updateOne: {
           filter: { _id: u.planId, [`rows.${u.rowIndex}.from`]: branchName },
-          update: {
-            $set: {
-              [`rows.${u.rowIndex}.dests.${u.destIndex}.transferDone`]: value,
-              [`rows.${u.rowIndex}.dests.${u.destIndex}.transferDoneAt`]: value ? now : null,
-              [`rows.${u.rowIndex}.dests.${u.destIndex}.transferDoneBy`]: value ? branchName : null,
-            },
-          },
+          update: { $set: set },
         },
       });
     }
