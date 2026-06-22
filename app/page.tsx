@@ -49,38 +49,78 @@ function CopyBtn({ code }: { code: string }) {
   );
 }
 
-function ReasonInput({
+// Standard "won't transfer" reasons. Replaces the old free-text box so branches
+// pick from a fixed list (almost always رصيد صفر) instead of typing — which kept
+// producing dozens of spellings of the same reason, and let them type "تم" to
+// mean "done". "أخرى" reveals a free-text field for anything not covered.
+const SKIP_REASONS = ["رصيد صفر", "رصيد وهمي", "صنف تالف", "طلبات"];
+const OTHER_REASON = "__other__";
+
+function ReasonPicker({
   onSend,
   disabled,
 }: {
   onSend: (r: string) => void;
   disabled?: boolean;
 }) {
-  const [val, setVal] = useState("");
-  const send = () => {
-    const r = val.trim();
+  const [choice, setChoice] = useState("");
+  const [custom, setCustom] = useState("");
+  const sendCustom = () => {
+    const r = custom.trim();
     if (!r) return;
     onSend(r);
-    setVal("");
+    setCustom("");
+    setChoice("");
   };
   return (
     <div className="flex items-center gap-1">
-      <input
-        value={val}
-        placeholder=""
+      <select
+        value={choice}
         disabled={disabled}
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && send()}
-        className="flex h-8 min-w-44 rounded-md border border-input bg-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-      />
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={disabled || !val.trim()}
-        onClick={send}
+        dir="rtl"
+        onChange={(e) => {
+          const v = e.target.value;
+          setChoice(v);
+          // a standard reason is committed immediately; "أخرى" waits for text
+          if (v && v !== OTHER_REASON) {
+            onSend(v);
+            setChoice("");
+          }
+        }}
+        className="flex h-8 min-w-44 rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       >
-        Send
-      </Button>
+        <option value="" disabled>
+          سبب عدم التحويل
+        </option>
+        {SKIP_REASONS.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+        <option value={OTHER_REASON}>أخرى…</option>
+      </select>
+      {choice === OTHER_REASON && (
+        <>
+          <input
+            value={custom}
+            placeholder="اكتب السبب"
+            disabled={disabled}
+            dir="rtl"
+            autoFocus
+            onChange={(e) => setCustom(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendCustom()}
+            className="flex h-8 min-w-40 rounded-md border border-input bg-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={disabled || !custom.trim()}
+            onClick={sendCustom}
+          >
+            Send
+          </Button>
+        </>
+      )}
     </div>
   );
 }
@@ -377,7 +417,7 @@ export default function HomePage() {
     ) : m.done ? (
       <span className="text-xs text-muted-foreground">—</span>
     ) : (
-      <ReasonInput
+      <ReasonPicker
         key={k}
         onSend={(r) => setSkip(m, true, r)}
         disabled={updating}
@@ -385,7 +425,7 @@ export default function HomePage() {
     );
 
   return (
-    <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <main className="mx-auto max-w-screen-2xl space-y-4 p-4 sm:p-6">
       {/* header */}
       <div className="flex items-end justify-between gap-4 border-b pb-3">
         <div>
@@ -525,6 +565,14 @@ export default function HomePage() {
           {visible.length} shown
         </span>
       </div>
+
+      {/* reason-only-on-skip notice */}
+      <p
+        dir="rtl"
+        className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-center text-base font-bold text-amber-700 dark:text-amber-400"
+      >
+        فى حاله عدم التحويل فقط برجاء كتابه السبب
+      </p>
 
       {error && (
         <p className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
