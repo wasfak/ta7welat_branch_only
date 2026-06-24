@@ -15,6 +15,11 @@ const DestSchema = new Schema(
     // transfers this leg. Optional on old docs (defaults to ""), filled going
     // forward since no branch has transferred yet.
     permitNo: { type: String, default: "" },
+    // "Exp danger" instruction set by the home planner (prog_ta7welat_been): an
+    // alternative to a numeric qty for near-expiry items — "كل الكمية",
+    // "التاريخ الاقرب", or a free note. When set, the leg is stored with qty 0 and
+    // this carries the instruction for branch staff. Empty = a normal qty leg.
+    label: { type: String, default: "" },
   },
   { _id: false },
 );

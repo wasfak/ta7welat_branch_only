@@ -16,11 +16,33 @@ type Move = {
   skipped: boolean;
   note: string;
   permitNo: string;
+  // "Exp danger" instruction in place of a numeric qty (كل الكمية / التاريخ
+  // الاقرب / a note). When set, the leg has qty 0 and this is shown instead.
+  label: string;
   createdAt: string;
 };
 
 function fmt(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+// "Move all" recall legs (from the main app) carry no quantity: they're saved
+// with qty 0 and the item name prefixed with this. We surface the instruction the
+// same way as a per-leg `label`, and strip the prefix from the displayed name.
+const ALL_QTY_PREFIX = "كل الكمية — ";
+
+// The instruction to show in the qty column ("" = show the numeric qty). Covers
+// both channels: a per-leg `label` (exp danger) and the name-prefix recall legs.
+function instrOf(m: Move) {
+  if (m.label) return m.label;
+  if (m.name.startsWith(ALL_QTY_PREFIX)) return "كل الكمية";
+  return "";
+}
+
+function cleanName(name: string) {
+  return name.startsWith(ALL_QTY_PREFIX)
+    ? name.slice(ALL_QTY_PREFIX.length)
+    : name;
 }
 
 function daysSince(iso: string) {
@@ -213,8 +235,12 @@ export default function HomePage() {
   const confirmPending = async () => {
     if (!pending.size) return;
     const toUpdate = moves.filter((m) => pending.has(moveKey(m)));
-    // رقم اذن الصرف is required for every leg before it can be transferred
-    const missing = toUpdate.filter((m) => !(permits[moveKey(m)] ?? "").trim());
+    // رقم اذن الصرف is required before transfer — EXCEPT for instruction legs
+    // (كل الكمية / التاريخ الاقرب / a note, incl. name-prefix recalls), which have
+    // no fixed quantity and are allowed through without a permit number.
+    const missing = toUpdate.filter(
+      (m) => !instrOf(m) && !(permits[moveKey(m)] ?? "").trim(),
+    );
     if (missing.length) {
       setError(
         `ادخل رقم اذن الصرف لكل صنف قبل التحويل (${missing.length} ناقص)`,
@@ -630,16 +656,25 @@ export default function HomePage() {
                           </span>
                           <CopyBtn code={m.code} />
                         </div>
-                        <span className="font-mono text-sm font-semibold">
-                          ×{fmt(m.qty)}
-                        </span>
+                        {instrOf(m) ? (
+                          <span
+                            dir="auto"
+                            className="rounded bg-amber-500/15 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:text-amber-400"
+                          >
+                            {instrOf(m)}
+                          </span>
+                        ) : (
+                          <span className="font-mono text-sm font-semibold">
+                            ×{fmt(m.qty)}
+                          </span>
+                        )}
                       </div>
                       <div
                         dir="auto"
                         className="mt-1 break-words text-sm"
-                        title={m.name}
+                        title={cleanName(m.name)}
                       >
-                        {m.name}
+                        {cleanName(m.name)}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                         <span>
@@ -747,14 +782,23 @@ export default function HomePage() {
                           <CopyBtn code={m.code} />
                         </div>
                       </td>
-                      <td dir="auto" className="px-3 py-2" title={m.name}>
-                        {m.name}
+                      <td dir="auto" className="px-3 py-2" title={cleanName(m.name)}>
+                        {cleanName(m.name)}
                       </td>
                       <td dir="auto" className="px-3 py-2 whitespace-nowrap">
                         {m.dest}
                       </td>
-                      <td className="px-3 py-2 text-center font-mono font-semibold">
-                        {fmt(m.qty)}
+                      <td className="px-3 py-2 text-center font-semibold">
+                        {instrOf(m) ? (
+                          <span
+                            dir="auto"
+                            className="whitespace-nowrap rounded bg-amber-500/15 px-2 py-0.5 text-amber-700 dark:text-amber-400"
+                          >
+                            {instrOf(m)}
+                          </span>
+                        ) : (
+                          <span className="font-mono">{fmt(m.qty)}</span>
+                        )}
                       </td>
                       <td className="px-3 py-2">{renderPermit(m, k)}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">

@@ -37,6 +37,7 @@ export async function GET(req: Request) {
     skipped: boolean;
     note: string;
     permitNo: string;
+    label: string;
     createdAt: string;
   };
 
@@ -47,6 +48,7 @@ export async function GET(req: Request) {
     skipped?: boolean;
     note?: string;
     permitNo?: string;
+    label?: string;
   };
   type LeanRow = {
     code: string;
@@ -73,6 +75,7 @@ export async function GET(req: Request) {
           skipped: !!dest.skipped,
           note: dest.note ?? "",
           permitNo: dest.permitNo ?? "",
+          label: dest.label ?? "",
           createdAt: plan.createdAt ? new Date(plan.createdAt).toISOString() : "",
         });
       });
