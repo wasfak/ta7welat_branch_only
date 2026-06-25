@@ -16,8 +16,9 @@ type Move = {
   skipped: boolean;
   note: string;
   permitNo: string;
-  // "Exp danger" instruction in place of a numeric qty (كل الكمية / التاريخ
-  // الاقرب / a note). When set, the leg has qty 0 and this is shown instead.
+  // "Exp danger" instruction (كل الكمية / التاريخ الاقرب / a note). كل الكمية and
+  // notes have qty 0 and show the instruction in place of a number; التاريخ الاقرب
+  // carries a real qty and shows BOTH the number and the instruction.
   label: string;
   createdAt: string;
 };
@@ -235,11 +236,12 @@ export default function HomePage() {
   const confirmPending = async () => {
     if (!pending.size) return;
     const toUpdate = moves.filter((m) => pending.has(moveKey(m)));
-    // رقم اذن الصرف is required before transfer — EXCEPT for instruction legs
-    // (كل الكمية / التاريخ الاقرب / a note, incl. name-prefix recalls), which have
-    // no fixed quantity and are allowed through without a permit number.
+    // رقم اذن الصرف is required for any leg that moves a real quantity (qty > 0) —
+    // that now includes التاريخ الاقرب legs. Pure-instruction legs with no fixed
+    // quantity (كل الكمية / a note, incl. name-prefix recalls, qty 0) are allowed
+    // through without a permit number.
     const missing = toUpdate.filter(
-      (m) => !instrOf(m) && !(permits[moveKey(m)] ?? "").trim(),
+      (m) => m.qty > 0 && !(permits[moveKey(m)] ?? "").trim(),
     );
     if (missing.length) {
       setError(
@@ -401,6 +403,29 @@ export default function HomePage() {
     inputCode.trim() !== filterCode.trim() ||
     inputDateFrom !== filterDateFrom ||
     inputDateTo !== filterDateTo;
+
+  // Qty column: show the numeric quantity, plus any instruction (التاريخ الاقرب)
+  // beside it — those legs move a specific quantity AND carry the instruction.
+  // Pure-instruction legs (كل الكمية / a note, qty 0) show only the instruction.
+  const renderQty = (m: Move) => {
+    const instr = instrOf(m);
+    const badge = instr ? (
+      <span
+        dir="auto"
+        className="whitespace-nowrap rounded bg-amber-500/15 px-2 py-0.5 text-sm text-amber-700 dark:text-amber-400"
+      >
+        {instr}
+      </span>
+    ) : null;
+    if (m.qty > 0)
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <span className="font-mono text-sm font-semibold">{fmt(m.qty)}</span>
+          {badge}
+        </span>
+      );
+    return badge ?? <span className="font-mono text-sm font-semibold">{fmt(m.qty)}</span>;
+  };
 
   // Shared cell renderers, reused by the desktop table and the mobile cards.
   const renderPermit = (m: Move, k: string, inputClass = "w-32") =>
@@ -656,18 +681,7 @@ export default function HomePage() {
                           </span>
                           <CopyBtn code={m.code} />
                         </div>
-                        {instrOf(m) ? (
-                          <span
-                            dir="auto"
-                            className="rounded bg-amber-500/15 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:text-amber-400"
-                          >
-                            {instrOf(m)}
-                          </span>
-                        ) : (
-                          <span className="font-mono text-sm font-semibold">
-                            ×{fmt(m.qty)}
-                          </span>
-                        )}
+                        {renderQty(m)}
                       </div>
                       <div
                         dir="auto"
@@ -789,16 +803,7 @@ export default function HomePage() {
                         {m.dest}
                       </td>
                       <td className="px-3 py-2 text-center font-semibold">
-                        {instrOf(m) ? (
-                          <span
-                            dir="auto"
-                            className="whitespace-nowrap rounded bg-amber-500/15 px-2 py-0.5 text-amber-700 dark:text-amber-400"
-                          >
-                            {instrOf(m)}
-                          </span>
-                        ) : (
-                          <span className="font-mono">{fmt(m.qty)}</span>
-                        )}
+                        {renderQty(m)}
                       </td>
                       <td className="px-3 py-2">{renderPermit(m, k)}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
